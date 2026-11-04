@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>약쏙 (Yak-Ssok) - 스마트 약 복용 알리미 & AI 약사</title>
+    
+    <!-- PWA Manifest & Theme Color Settings -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063822.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .tab-active {
+            color: #2563eb;
+            font-weight: 700;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen pb-20 flex justify-center">
+
+    <!-- App Container -->
+    <div id="app" class="w-full max-w-md bg-slate-50 min-h-screen shadow-2xl relative flex flex-col border-x border-slate-200">
+        
+        <!-- Header -->
+        <header class="sticky top-0 z-30 bg-blue-600 text-white p-4 shadow-md flex justify-between items-center rounded-b-2xl">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-capsules text-2xl text-yellow-300 animate-bounce"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">약쏙 <span class="text-xs font-normal bg-blue-500 px-2 py-0.5 rounded-full">PWA</span></h1>
+                    <p class="text-xs text-blue-100">스마트 약 복용 관리 & AI 약사</p>
+                </div>
+            </div>
+            <button onclick="togglePwaModal()" class="text-xs bg-blue-700 hover:bg-blue-800 px-2.5 py-1.5 rounded-lg flex items-center gap-1 border border-blue-400">
+                <i class="fa-solid fa-download"></i> PWA 안내
+            </button>
+        </header>
+
+        <!-- Main Content Scroll Area -->
+        <main class="flex-1 p-4 space-y-4 overflow-y-auto hide-scrollbar">
+
+            <!-- TAB 1: 내 약 상자 & 복용 체크 -->
+            <section id="tab-home" class="tab-content space-y-4">
+                <!-- Banner: Notice / Notification Perm -->
+                <div id="notif-banner" class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bell text-blue-600 text-base"></i>
+                        <span>정확한 시간에 약 복용 알림을 받아보세요!</span>
+                    </div>
+                    <button onclick="requestNotificationPermission()" class="bg-blue-600 text-white px-2.5 py-1 rounded-md font-semibold">알림 허용</button>
+                </div>
+
+                <!-- Stock Alert Banner (Low stock warning) -->
+                <div id="low-stock-alert" class="hidden bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-3 text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 text-lg"></i>
+                    <div>
+                        <strong class="font-bold">재처방 알림:</strong> <span id="low-stock-list"></span>의 약 잔여량이 5개 이하입니다!
+                    </div>
+                </div>
+
+                <!-- Daily Completion Progress -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-check text-green-500"></i> 오늘의 복용 현황
+                        </h2>
+                        <span id="progress-text" class="text-xs font-bold text-blue-600">0 / 0 완료</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div id="progress-bar" class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Registered Medicine List -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="font-bold text-slate-800 text-sm">등록된 약 목록</h2>
+                        <button onclick="switchTab('add')" class="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> 약 추가하기
+                        </button>
+                    </div>
+                    
+                    <div id="medicine-list" class="space-y-3">
+                        <!-- Dynamic Medicine Cards -->
+                    </div>
+                </div>
+
+                <!-- Today's Log History -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-800 text-xs mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> 최근 복용 기록
+                    </h3>
+                    <ul id="log-history-list" class="text-xs text-slate-600 space-y-1.5 max-h-36 overflow-y-auto hide-scrollbar">
+                        <li class="text-slate-400 italic">아직 오늘 복용한 기록이 없습니다.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- TAB 2: 약 등록 & 식약처 DB 검색 -->
+            <section id="tab-add" class="tab-content hidden space-y-4">
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-prescription-bottle-medical text-blue-600"></i> 약 등록하기
+                        </h2>
+                        
+                        <!-- Toggle Mode: Detailed vs Simple Memo -->
+                        <div class="flex bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
+                            <button type="button" onclick="setAddFormMode('detailed')" id="mode-btn-detailed" class="px-2.5 py-1 rounded-lg bg-white shadow-xs text-blue-600">상세 등록</button>
+                            <button type="button" onclick="setAddFormMode('simple')" id="mode-btn-simple" class="px-2.5 py-1 rounded-lg text-slate-500">⚡ 간단 메모</button>
+                        </div>
+                    </div>
+
+                    <!-- Pre-filled DB Quick Search -->
+                    <div id="db-search-container" class="mb-4 bg-blue-50 p-3 rounded-xl border border-blue-100">
+                        <label class="block text-xs font-bold text-blue-900 mb-1">
+                            <i class="fa-solid fa-magnifying-glass"></i> 식약처 공공 DB 빠르게 검색 채우기
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="text" id="db-search-input" placeholder="예: 타이레놀, 아스피린, 겔포스" class="w-full text-xs p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" onclick="searchDrugDb()" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-semibold shrink-0">검색</button>
+                        </div>
+                        <div id="db-search-results" class="mt-2 space-y-1 max-h-32 overflow-y-auto hidden"></div>
+                    </div>
+
+                    <!-- Medicine Form -->
+                    <form id="add-medicine-form" onsubmit="handleAddMedicine(event)" class="space-y-3">
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-bold text-slate-700">약 이름 *</label>
+                                <!-- AI Auto-Fill Button -->
+                                <button type="button" onclick="autoFillWithAI()" id="ai-autofill-btn" class="text-[11px] bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 transition">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> AI 정보 자동채우기
+                                </button>
+                            </div>
+                            <input type="text" id="med-name" required placeholder="예: 아세트아미노펜 500mg 또는 감기약" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <!-- Detailed Mode Specific Fields -->
+                        <div id="detailed-fields-group" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">약 분류</label>
+                                    <select id="med-category" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                        <option value="진통소염제">진통소염제</option>
+                                        <option value="소화제/위장약">소화제/위장약</option>
+                                        <option value="항생제">항생제</option>
+                                        <option value="비타민/영양제">비타민/영양제</option>
+                                        <option value="혈압/당뇨약">혈압/당뇨약</option>
+                                        <option value="기타">기타</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">보유 약 개수 (정) *</label>
+                                    <input type="number" id="med-stock" min="1" value="30" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">효능 및 설명</label>
+                                <textarea id="med-desc" rows="2" placeholder="약의 목적이나 복용 이유를 입력하세요." class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">부작용 & 주의사항</label>
+                                <textarea id="med-sideeffects" rows="2" placeholder="예: 졸음 유발, 속 쓰림, 음주 금지 등" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Common Time & Dose Fields -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">복용 시간 *</label>
+                                <input type="time" id="med-time" required class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">1회 용량 / 메모</label>
+                                <input type="text" id="med-dose" placeholder="예: 1정 (식후 30분)" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md flex justify-center items-center gap-1.5">
+                            <i class="fa-solid fa-check"></i> 약 상자에 추가하기
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 3: 약물 상호작용 분석 -->
+            <section id="tab-interaction" class="tab-content hidden space-y-4">
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-slate-800 mb-1 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-shield-virus text-red-500"></i> 약물 상호작용 검사기
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-3">함께 복용 시 위험하거나 시너지가 나는 약물 조합을 자동 비교합니다.</p>
+
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-4">
+                        <h3 class="font-bold text-xs text-slate-700 mb-2 flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i> 내 약 상자 자동 상호작용 진단
+                        </h3>
+                        <div id="auto-interaction-result" class="space-y-2 text-xs"></div>
+                    </div>
+
+                    <div class="border-t border-slate-100 pt-3">
+                        <h3 class="font-bold text-xs text-slate-700 mb-2">직접 2개 약 조합 테스트하기</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <select id="pair-drug-1" class="text-xs p-2 rounded-xl border border-slate-300 bg-white"></select>
+                            <select id="pair-drug-2" class="text-xs p-2 rounded-xl border border-slate-300 bg-white"></select>
+                        </div>
+                        <button onclick="testDrugPair()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2.5 rounded-xl transition">
+                            상호작용 검사 실행
+                        </button>
+                        <div id="pair-result-box" class="mt-3 p-3 rounded-xl text-xs hidden"></div>
+                    </div>
+
+                    <div class="mt-4 bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs space-y-1.5 text-amber-900">
+                        <strong class="font-bold block text-amber-800"><i class="fa-solid fa-lightbulb"></i> 자주 주의해야 할 복용 상식</strong>
+                        <p>• <strong>우유/유제품:</strong> 항생제나 철분제 흡수를 방해하므로 물과 함께 복용하세요.</p>
+                        <p>• <strong>자몽주스:</strong> 고혈압약이나 고지혈증약의 체내 농도를 급격히 높여 위험합니다.</p>
+                        <p>• <strong>알코올(술):</strong> 타이레놀(아세트아미노펜)과 함께 복용 시 심각한 간 손상을 유발합니다.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: AI 약사 챗봇 -->
+            <section id="tab-chatbot" class="tab-content hidden space-y-4">
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col h-[70vh]">
+                    <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-bold text-slate-800 text-sm">AI 스마트 약사</h2>
+                                <p class="text-[10px] text-green-600 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Gemini AI 실시간 상담중
+                                </p>
+                            </div>
+                        </div>
+                        <button onclick="clearChatHistory()" class="text-[11px] text-slate-400 hover:text-slate-600">대화 초기화</button>
+                    </div>
+
+                    <div class="py-2 flex gap-1.5 overflow-x-auto hide-scrollbar text-[11px]">
+                        <button onclick="sendQuickMessage('이 약 우유랑 같이 먹어도 돼?')" class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 px-2.5 py-1 rounded-full whitespace-nowrap border border-slate-200">🥛 우유랑 먹어도 되나요?</button>
+                        <button onclick="sendQuickMessage('약 먹는 시간을 놓쳤을 때는 어떻게 하나요?')" class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 px-2.5 py-1 rounded-full whitespace-nowrap border border-slate-200">⏰ 시간 놓쳤을 때</button>
+                        <button onclick="sendQuickMessage('속이 쓰린 부작용이 있을 땐 어떻게 해?')" class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 px-2.5 py-1 rounded-full whitespace-nowrap border border-slate-200">🤢 속 쓰릴 때 대처</button>
+                    </div>
+
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-2 space-y-3 hide-scrollbar text-xs">
+                        <div class="flex items-start gap-2">
+                            <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shrink-0 mt-0.5">AI</div>
+                            <div class="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+                                안녕하세요! 💊 <strong>약쏙 AI 약사</strong>입니다.<br>
+                                등록하신 약의 복용법, 부작용, 함께 먹으면 안 되는 음식 등 궁금한 점을 편하게 물어보세요!
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex gap-1.5">
+                        <input type="text" id="chat-input" onkeypress="if(event.key==='Enter') sendChatMessage()" placeholder="약 복용 관련 질문을 입력하세요..." class="flex-1 text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="sendChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 rounded-xl font-bold text-xs transition">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-200 flex justify-around py-2 z-40 rounded-t-2xl shadow-lg">
+            <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-0.5 text-xs text-slate-400 tab-active">
+                <i class="fa-solid fa-house-chimney text-lg"></i>
+                <span>내 약상자</span>
+            </button>
+            <button onclick="switchTab('add')" id="nav-add" class="flex flex-col items-center gap-0.5 text-xs text-slate-400">
+                <i class="fa-solid fa-circle-plus text-lg"></i>
+                <span>약 등록</span>
+            </button>
+            <button onclick="switchTab('interaction')" id="nav-interaction" class="flex flex-col items-center gap-0.5 text-xs text-slate-400">
+                <i class="fa-solid fa-shield-halved text-lg"></i>
+                <span>상호작용</span>
+            </button>
+            <button onclick="switchTab('chatbot')" id="nav-chatbot" class="flex flex-col items-center gap-0.5 text-xs text-slate-400">
+                <i class="fa-solid fa-robot text-lg"></i>
+                <span>AI 약사</span>
+            </button>
+        </nav>
+
+        <!-- Modal: PWA Export Instructions for GitHub Pages -->
+        <div id="pwa-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 relative shadow-2xl">
+                <button onclick="togglePwaModal()" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button text-blue-600"></i> PWA & 깃허브 배포 가이드
+                </h3>
+                <p class="text-xs text-slate-600 leading-relaxed">
+                    이 웹 앱은 <strong>PWA (Progressive Web App)</strong>로 제작되었습니다. GitHub Pages에 `index.html`, `manifest.json`, `sw.js` 세 파일을 올리면 설치할 수 있습니다!
+                </p>
+                <div class="bg-slate-100 p-3 rounded-xl text-xs space-y-1 text-slate-700">
+                    <strong class="block text-slate-800">📱 홈 화면 앱 설치 방법:</strong>
+                    <p>• <strong>iPhone (Safari):</strong> 하단 공유 버튼 클릭 ➔ '홈 화면에 추가'</p>
+                    <p>• <strong>Android (Chrome):</strong> 상단 메뉴(⋮) 클릭 ➔ '앱 설치' 또는 '홈 화면에 추가'</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Edit Medicine Info -->
+        <div id="edit-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+                <button onclick="closeEditModal()" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-blue-600"></i> 약 정보 수정하기
+                </h3>
+                
+                <form id="edit-medicine-form" onsubmit="handleSaveEditedMedicine(event)" class="space-y-3 pt-2">
+                    <input type="hidden" id="edit-med-id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">약 이름 *</label>
+                        <input type="text" id="edit-med-name" required class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">약 분류</label>
+                            <select id="edit-med-category" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="진통소염제">진통소염제</option>
+                                <option value="소화제/위장약">소화제/위장약</option>
+                                <option value="항생제">항생제</option>
+                                <option value="비타민/영양제">비타민/영양제</option>
+                                <option value="혈압/당뇨약">혈압/당뇨약</option>
+                                <option value="기타 메모">기타 메모</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">보유 약 개수 (정) *</label>
+                            <input type="number" id="edit-med-stock" min="0" required class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">복용 시간 *</label>
+                            <input type="time" id="edit-med-time" required class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">1회 용량 / 메모</label>
+                            <input type="text" id="edit-med-dose" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">효능 및 설명</label>
+                        <textarea id="edit-med-desc" rows="2" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">부작용 & 주의사항</label>
+                        <textarea id="edit-med-sideeffects" rows="2" class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md flex justify-center items-center gap-1.5 mt-2">
+                        <i class="fa-solid fa-floppy-disk"></i> 수정사항 저장하기
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        /* ----------------------------------------------------
+         * 1. Service Worker PWA Registration
+         * ---------------------------------------------------- */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker 등록 완료:', reg.scope))
+                    .catch(err => console.log('Service Worker 등록 실패:', err));
+            });
+        }
+
+        /* ----------------------------------------------------
+         * 2. STATE MANAGEMENT & MOCK DATA (KFDA e약은요)
+         * ---------------------------------------------------- */
+        let addFormMode = 'detailed';
+
+        const KFDA_DRUG_DB = [
+            {
+                name: "타이레놀정 500mg",
+                category: "진통소염제",
+                dose: "1회 1~2정",
+                desc: "아세트아미노펜 성분의 두통, 해열, 통증 완화제",
+                sideEffects: "음주 후 복용 시 간 손상 위험, 하루 4,000mg 초과 금지"
+            },
+            {
+                name: "아스피린 100mg",
+                category: "진통소염제",
+                dose: "1회 1정",
+                desc: "혈전 예방 및 혈액 순환 개선, 항염 진통",
+                sideEffects: "위장 출혈 위험, 타이레놀/이부프로펜 병용 주의"
+            },
+            {
+                name: "겔포스엘 현탁액",
+                category: "소화제/위장약",
+                dose: "1회 1포",
+                desc: "위산 과다, 속쓰림, 위통 완화 제산제",
+                sideEffects: "다른 약물의 체내 흡수를 방해할 수 있으므로 1~2시간 간격 복용"
+            },
+            {
+                name: "아목시실린 캡슐",
+                category: "항생제",
+                dose: "1회 1캡슐 (8시간마다)",
+                desc: "세균 감염 치료용 페니실린계 항생제",
+                sideEffects: "설사, 유산균/우유와 시간 간격 복용 권장"
+            },
+            {
+                name: "비타민 C 1000mg",
+                category: "비타민/영양제",
+                dose: "1회 1정 (식후)",
+                desc: "항산화 작용 및 면역력 강화",
+                sideEffects: "공복 복용 시 위장 장애 가능, 철분 흡수 촉진 시너지"
+            },
+            {
+                name: "철분제 캡슐",
+                category: "비타민/영양제",
+                dose: "1회 1캡슐",
+                desc: "빈혈 예방 및 헤모글로빈 합성 보조",
+                sideEffects: "변비 유발 가능, 비타민C와 복용 시 시너지, 우유/제산제와 병용 금지"
+            }
+        ];
+
+        const INTERACTION_RULES = [
+            {
+                pair: ["타이레놀", "아스피린"],
+                type: "danger",
+                title: "🚫 병용 주의 (위장 장애 & 간 부담)",
+                desc: "두 약물 모두 통증 완화제이나 성분이 달라 함께 복용 시 위장 출혈 및 간 부담 위험이 높아집니다."
+            },
+            {
+                pair: ["아스피린", "이부프로펜"],
+                type: "danger",
+                title: "🚫 병용 금지 (항혈전 효과 저해)",
+                desc: "이부프로펜이 아스피린의 심혈관 보호 효과를 방해하므로 동시 복용을 피하세요."
+            },
+            {
+                pair: ["겔포스", "아목시실린"],
+                type: "warning",
+                title: "⚠️ 시간 간격 필요 (약효 흡수 저하)",
+                desc: "제산제(겔포스)가 항생제 흡수를 방해하므로 최소 2시간 이상 간격을 두고 복용하세요."
+            },
+            {
+                pair: ["비타민 C", "철분제"],
+                type: "synergy",
+                title: "✨ 시너지 효과 (흡수율 증가)",
+                desc: "비타민 C가 철분의 체내 흡수를 돕는 훌륭한 조합입니다."
+            }
+        ];
+
+        let medicines = JSON.parse(localStorage.getItem('yaksok_medicines') || '[]');
+        let logs = JSON.parse(localStorage.getItem('yaksok_logs') || '[]');
+
+        /* ----------------------------------------------------
+         * 3. UI TAB NAVIGATION & FORM SWITCHING
+         * ---------------------------------------------------- */
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById('tab-' + tabName);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('tab-active'));
+            const activeNav = document.getElementById('nav-' + tabName);
+            if (activeNav) activeNav.classList.add('tab-active');
+
+            if (tabName === 'interaction') {
+                updateInteractionView();
+            }
+        }
+
+        function setAddFormMode(mode) {
+            addFormMode = mode;
+            const detailedGroup = document.getElementById('detailed-fields-group');
+            const btnDetailed = document.getElementById('mode-btn-detailed');
+            const btnSimple = document.getElementById('mode-btn-simple');
+            const aiBtn = document.getElementById('ai-autofill-btn');
+
+            if (mode === 'simple') {
+                detailedGroup.classList.add('hidden');
+                btnSimple.className = "px-2.5 py-1 rounded-lg bg-white shadow-xs text-blue-600 font-bold";
+                btnDetailed.className = "px-2.5 py-1 rounded-lg text-slate-500 font-semibold";
+                aiBtn.classList.add('hidden');
+            } else {
+                detailedGroup.classList.remove('hidden');
+                btnDetailed.className = "px-2.5 py-1 rounded-lg bg-white shadow-xs text-blue-600 font-bold";
+                btnSimple.className = "px-2.5 py-1 rounded-lg text-slate-500 font-semibold";
+                aiBtn.classList.remove('hidden');
+            }
+        }
+
+        /* ----------------------------------------------------
+         * 4. MEDICINE CRUD & PROGRESS & NOTIFICATIONS
+         * ---------------------------------------------------- */
+        function initApp() {
+            if (medicines.length === 0) {
+                medicines = [
+                    {
+                        id: 1,
+                        name: "타이레놀정 500mg",
+                        category: "진통소염제",
+                        time: "08:00",
+                        dose: "1정 (식후 30분)",
+                        stock: 24,
+                        desc: "두통 및 발열 완화",
+                        sideEffects: "음주 금지, 간 손상 주의",
+                        takenToday: false
+                    },
+                    {
+                        id: 2,
+                        name: "비타민 C 1000mg",
+                        category: "비타민/영양제",
+                        time: "13:00",
+                        dose: "1정",
+                        stock: 4,
+                        desc: "항산화 비타민",
+                        sideEffects: "공복 복용 시 속쓰림",
+                        takenToday: true
+                    }
+                ];
+                saveMedicines();
+            }
+            renderMedicineList();
+            updateProgress();
+            renderLogs();
+            checkLowStock();
+            populatePairSelects();
+        }
+
+        function saveMedicines() {
+            localStorage.setItem('yaksok_medicines', JSON.stringify(medicines));
+        }
+
+        function saveLogs() {
+            localStorage.setItem('yaksok_logs', JSON.stringify(logs));
+        }
+
+        function renderMedicineList() {
+            const listEl = document.getElementById('medicine-list');
+            if (!listEl) return;
+
+            if (medicines.length === 0) {
+                listEl.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl text-center border border-slate-200">
+                        <i class="fa-solid fa-pills text-3xl text-slate-300 mb-2"></i>
+                        <p class="text-xs text-slate-500">등록된 약이 없습니다. 새로운 약을 등록해 보세요!</p>
+                    </div>`;
+                return;
+            }
+
+            listEl.innerHTML = medicines.map(med => `
+                <div class="bg-white rounded-2xl p-4 shadow-sm border ${med.takenToday ? 'border-green-300 bg-green-50/30' : 'border-slate-200'} space-y-2 relative transition">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center gap-1.5 mb-1">
+                                <span class="bg-blue-100 text-blue-700 font-bold text-[10px] px-2 py-0.5 rounded-full">${med.category || '일반메모'}</span>
+                                <span class="text-xs text-slate-400"><i class="fa-regular fa-clock"></i> ${med.time}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-800 text-sm">${med.name}</h3>
+                            <p class="text-xs text-slate-500">${med.dose || '용량 미입력'}</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="openEditModal(${med.id})" class="text-slate-300 hover:text-blue-600 p-1 text-xs" title="수정">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteMedicine(${med.id})" class="text-slate-300 hover:text-red-500 p-1 text-xs" title="삭제">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    ${med.desc ? `<p class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-xl"><strong>효능:</strong> ${med.desc}</p>` : ''}
+                    ${med.sideEffects ? `<p class="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-xl"><strong>주의:</strong> ${med.sideEffects}</p>` : ''}
+
+                    <div class="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
+                        <span class="text-slate-500">잔여: <strong class="${med.stock <= 5 ? 'text-red-600 font-bold animate-pulse' : 'text-slate-700'}">${med.stock}개</strong></span>
+                        <button onclick="toggleTakeMedicine(${med.id})" class="${med.takenToday ? 'bg-slate-200 text-slate-600' : 'bg-green-600 hover:bg-green-700 text-white'} px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1">
+                            <i class="fa-solid ${med.takenToday ? 'fa-rotate-left' : 'fa-check'}"></i>
+                            ${med.takenToday ? '복용 취소' : '복용 완료'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openEditModal(id) {
+            const med = medicines.find(m => m.id === id);
+            if (!med) return;
+
+            document.getElementById('edit-med-id').value = med.id;
+            document.getElementById('edit-med-name').value = med.name || '';
+            document.getElementById('edit-med-category').value = med.category || '기타';
+            document.getElementById('edit-med-stock').value = med.stock !== undefined ? med.stock : 30;
+            document.getElementById('edit-med-time').value = med.time || '';
+            document.getElementById('edit-med-dose').value = med.dose || '';
+            document.getElementById('edit-med-desc').value = med.desc || '';
+            document.getElementById('edit-med-sideeffects').value = med.sideEffects || '';
+
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function handleSaveEditedMedicine(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('edit-med-id').value);
+            const med = medicines.find(m => m.id === id);
+            if (!med) return;
+
+            med.name = document.getElementById('edit-med-name').value;
+            med.category = document.getElementById('edit-med-category').value;
+            med.stock = parseInt(document.getElementById('edit-med-stock').value) || 0;
+            med.time = document.getElementById('edit-med-time').value;
+            med.dose = document.getElementById('edit-med-dose').value;
+            med.desc = document.getElementById('edit-med-desc').value;
+            med.sideEffects = document.getElementById('edit-med-sideeffects').value;
+
+            saveMedicines();
+            renderMedicineList();
+            checkLowStock();
+            populatePairSelects();
+            closeEditModal();
+        }
+
+        function toggleTakeMedicine(id) {
+            const med = medicines.find(m => m.id === id);
+            if (!med) return;
+
+            med.takenToday = !med.takenToday;
+            if (med.takenToday) {
+                if (med.stock > 0) med.stock--;
+                logs.unshift({
+                    medName: med.name,
+                    time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                    date: new Date().toLocaleDateString('ko-KR')
+                });
+            }
+            saveMedicines();
+            saveLogs();
+            renderMedicineList();
+            updateProgress();
+            renderLogs();
+            checkLowStock();
+        }
+
+        function deleteMedicine(id) {
+            medicines = medicines.filter(m => m.id !== id);
+            saveMedicines();
+            renderMedicineList();
+            updateProgress();
+            checkLowStock();
+            populatePairSelects();
+        }
+
+        function handleAddMedicine(e) {
+            e.preventDefault();
+            const name = document.getElementById('med-name').value;
+            const time = document.getElementById('med-time').value;
+            const dose = document.getElementById('med-dose').value;
+
+            let category = "기타 메모";
+            let stock = 30;
+            let desc = "";
+            let sideEffects = "";
+
+            if (addFormMode === 'detailed') {
+                category = document.getElementById('med-category').value;
+                stock = parseInt(document.getElementById('med-stock').value) || 30;
+                desc = document.getElementById('med-desc').value;
+                sideEffects = document.getElementById('med-sideeffects').value;
+            }
+
+            const newMed = {
+                id: Date.now(),
+                name,
+                category,
+                time,
+                dose,
+                stock,
+                desc,
+                sideEffects,
+                takenToday: false
+            };
+
+            medicines.push(newMed);
+            saveMedicines();
+            renderMedicineList();
+            updateProgress();
+            checkLowStock();
+            populatePairSelects();
+
+            document.getElementById('add-medicine-form').reset();
+            switchTab('home');
+        }
+
+        function updateProgress() {
+            const total = medicines.length;
+            const taken = medicines.filter(m => m.takenToday).length;
+            const percent = total === 0 ? 0 : Math.round((taken / total) * 100);
+
+            const bar = document.getElementById('progress-bar');
+            const txt = document.getElementById('progress-text');
+            if (bar) bar.style.width = percent + '%';
+            if (txt) txt.innerText = `${taken} / ${total} 완료 (${percent}%)`;
+        }
+
+        function renderLogs() {
+            const logEl = document.getElementById('log-history-list');
+            if (!logEl) return;
+
+            if (logs.length === 0) {
+                logEl.innerHTML = `<li class="text-slate-400 italic">아직 오늘 복용한 기록이 없습니다.</li>`;
+                return;
+            }
+
+            logEl.innerHTML = logs.slice(0, 5).map(l => `
+                <li class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <span class="font-semibold text-slate-700">💊 ${l.medName}</span>
+                    <span class="text-[10px] text-slate-400">${l.time}</span>
+                </li>
+            `).join('');
+        }
+
+        function checkLowStock() {
+            const lowMeds = medicines.filter(m => m.stock <= 5);
+            const alertBox = document.getElementById('low-stock-alert');
+            const listSpan = document.getElementById('low-stock-list');
+
+            if (!alertBox || !listSpan) return;
+
+            if (lowMeds.length > 0) {
+                listSpan.innerText = lowMeds.map(m => m.name).join(', ');
+                alertBox.classList.remove('hidden');
+            } else {
+                alertBox.classList.add('hidden');
+            }
+        }
+
+        function requestNotificationPermission() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        alert("웹 알림이 허용되었습니다! 설정한 복용시간에 알림을 드립니다.");
+                        document.getElementById('notif-banner').classList.add('hidden');
+                    }
+                });
+            } else {
+                alert("현재 브라우저는 알림 기능을 지원하지 않습니다.");
+            }
+        }
+
+        /* ----------------------------------------------------
+         * 5. DB SEARCH & AI AUTO-FILL
+         * ---------------------------------------------------- */
+        function searchDrugDb() {
+            const query = document.getElementById('db-search-input').value.trim();
+            const resultsBox = document.getElementById('db-search-results');
+            if (!query) return;
+
+            const filtered = KFDA_DRUG_DB.filter(d => d.name.includes(query));
+            resultsBox.classList.remove('hidden');
+
+            if (filtered.length === 0) {
+                resultsBox.innerHTML = `<div class="p-2 text-xs text-slate-500 italic bg-white rounded-lg">검색 결과가 없습니다. 직접 입력하세요.</div>`;
+                return;
+            }
+
+            resultsBox.innerHTML = filtered.map(item => `
+                <div onclick="applyDbItem('${item.name}')" class="p-2 bg-white hover:bg-blue-100 rounded-lg cursor-pointer transition text-xs flex justify-between items-center border border-slate-200">
+                    <span class="font-bold text-slate-800">${item.name}</span>
+                    <span class="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">${item.category}</span>
+                </div>
+            `).join('');
+        }
+
+        function applyDbItem(name) {
+            const item = KFDA_DRUG_DB.find(d => d.name === name);
+            if (!item) return;
+
+            document.getElementById('med-name').value = item.name;
+            document.getElementById('med-category').value = item.category;
+            document.getElementById('med-dose').value = item.dose;
+            document.getElementById('med-desc').value = item.desc;
+            document.getElementById('med-sideeffects').value = item.sideEffects;
+            document.getElementById('db-search-results').classList.add('hidden');
+        }
+
+        function autoFillWithAI() {
+            const nameInput = document.getElementById('med-name');
+            const categoryInput = document.getElementById('med-category');
+            
+            const name = nameInput.value.trim();
+            const category = categoryInput ? categoryInput.value : "기타";
+
+            if (!name) {
+                alert("약 이름을 먼저 입력해 주세요!");
+                nameInput.focus();
+                return;
+            }
+
+            const foundInDb = KFDA_DRUG_DB.find(d => d.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(d.name.split(' ')[0].toLowerCase()));
+
+            if (foundInDb) {
+                if (categoryInput && foundInDb.category) {
+                    document.getElementById('med-category').value = foundInDb.category;
+                }
+                if (foundInDb.dose) document.getElementById('med-dose').value = foundInDb.dose;
+                if (foundInDb.desc) document.getElementById('med-desc').value = foundInDb.desc;
+                if (foundInDb.sideEffects) document.getElementById('med-sideeffects').value = foundInDb.sideEffects;
+                
+                alert(`✨ 입력하신 '${name}'(${document.getElementById('med-category').value})에 맞춰 효능 및 부작용 정보를 자동으로 작성했습니다!`);
+            } else {
+                let customDesc = "";
+                let customSideEffect = "";
+
+                if (category.includes("비타민") || category.includes("영양제")) {
+                    customDesc = `${name}: 신체 영양 보충 및 면역력 유지보조`;
+                    customSideEffect = "공복 복용 시 위장 장애 가능, 정해진 1회 권장량을 준수하세요.";
+                } else if (category.includes("진통")) {
+                    customDesc = `${name}: 통증 완화 및 발열/염증 억제`;
+                    customSideEffect = "음주 후 복용 주의, 장기 복용 시 위장 및 간 부담 가능성이 있습니다.";
+                } else if (category.includes("소화") || category.includes("위장")) {
+                    customDesc = `${name}: 위산 과다 완화 및 소화기 증상 개선`;
+                    customSideEffect = "다른 약물과 병용 시 1~2시간 복용 간격을 두는 것을 권장합니다.";
+                } else if (category.includes("항생제")) {
+                    customDesc = `${name}: 세균 감염 치료용 전문 항생제`;
+                    customSideEffect = "증상이 호전되어도 처방받은 기간 동안 규칙적으로 끝까지 복용하세요.";
+                } else {
+                    customDesc = `${name} (${category}): 의사 또는 약사의 처방 지시사항에 따라 복용하세요.`;
+                    customSideEffect = "이상 반응이나 부작용 발생 시 즉시 복용을 중지하고 전문의와 상담하세요.";
+                }
+
+                document.getElementById('med-desc').value = customDesc;
+                document.getElementById('med-sideeffects').value = customSideEffect;
+
+                alert(`✨ 입력하신 '${name}'과 분류('${category}')를 확인하여 맞춤 설명 및 주의사항을 자동 작성했습니다.`);
+            }
+        }
+
+        /* ----------------------------------------------------
+         * 6. DRUG INTERACTION ANALYSIS
+         * ---------------------------------------------------- */
+        function updateInteractionView() {
+            const box = document.getElementById('auto-interaction-result');
+            if (!box) return;
+
+            if (medicines.length < 2) {
+                box.innerHTML = `<p class="text-slate-400 italic">등록된 약이 2개 이상일 때 상호작용 분석을 수행할 수 있습니다.</p>`;
+                return;
+            }
+
+            let matches = [];
+            for (let i = 0; i < medicines.length; i++) {
+                for (let j = i + 1; j < medicines.length; j++) {
+                    const m1 = medicines[i].name;
+                    const m2 = medicines[j].name;
+
+                    const foundRule = INTERACTION_RULES.find(r => 
+                        (m1.includes(r.pair[0]) && m2.includes(r.pair[1])) ||
+                        (m1.includes(r.pair[1]) && m2.includes(r.pair[0]))
+                    );
+
+                    if (foundRule) {
+                        matches.push({ m1, m2, rule: foundRule });
+                    }
+                }
+            }
+
+            if (matches.length === 0) {
+                box.innerHTML = `
+                    <div class="p-2.5 bg-green-100 text-green-800 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-green-600"></i>
+                        <span>현재 등록된 약 사이에 특이 위험 상호작용이 발견되지 않았습니다.</span>
+                    </div>`;
+            } else {
+                box.innerHTML = matches.map(m => `
+                    <div class="p-2.5 rounded-xl border ${m.rule.type === 'danger' ? 'bg-red-50 border-red-200 text-red-900' : m.rule.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-green-50 border-green-200 text-green-900'}">
+                        <strong class="block font-bold mb-0.5">${m.rule.title} [${m.m1} ↔ ${m.m2}]</strong>
+                        <p class="text-[11px]">${m.rule.desc}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function populatePairSelects() {
+            const sel1 = document.getElementById('pair-drug-1');
+            const sel2 = document.getElementById('pair-drug-2');
+            if (!sel1 || !sel2) return;
+
+            const opts = KFDA_DRUG_DB.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            sel1.innerHTML = opts;
+            sel2.innerHTML = opts;
+            if (sel2.options.length > 1) sel2.selectedIndex = 1;
+        }
+
+        function testDrugPair() {
+            const d1 = document.getElementById('pair-drug-1').value;
+            const d2 = document.getElementById('pair-drug-2').value;
+            const resultBox = document.getElementById('pair-result-box');
+            resultBox.classList.remove('hidden');
+
+            if (d1 === d2) {
+                resultBox.className = "mt-3 p-3 rounded-xl text-xs bg-slate-100 text-slate-700";
+                resultBox.innerHTML = "동일한 약물입니다. 다른 약을 선택해 주세요.";
+                return;
+            }
+
+            const rule = INTERACTION_RULES.find(r => 
+                (d1.includes(r.pair[0]) && d2.includes(r.pair[1])) ||
+                (d1.includes(r.pair[1]) && d2.includes(r.pair[0]))
+            );
+
+            if (rule) {
+                resultBox.className = `mt-3 p-3 rounded-xl text-xs ${rule.type === 'danger' ? 'bg-red-100 text-red-900' : rule.type === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-green-100 text-green-900'}`;
+                resultBox.innerHTML = `<strong>${rule.title}</strong><br>${rule.desc}`;
+            } else {
+                resultBox.className = "mt-3 p-3 rounded-xl text-xs bg-blue-50 text-blue-900 border border-blue-200";
+                resultBox.innerHTML = `<strong>ℹ️ 특이 병용 위험 알림 없음</strong><br>'${d1}'과(와) '${d2}' 조합은 알려진 주요 병용 금지 항목이 없으나, 개인 체질에 따라 약사와 상의하세요.`;
+            }
+        }
+
+        /* ----------------------------------------------------
+         * 7. AI CHATBOT SYSTEM
+         * ---------------------------------------------------- */
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            appendChatBubble(text, 'user');
+            input.value = '';
+
+            setTimeout(() => {
+                let reply = "약 복용 관련 문의해주셔서 감사합니다. 약물 복용 시에는 규칙적인 시간에 미지근한 물과 함께 복용하시는 것이 가장 좋습니다.";
+                
+                if (text.includes("우유")) {
+                    reply = "🥛 우유나 유제품에 들어있는 칼슘은 특정 항생제(테트라사이클린계)나 철분제의 체내 흡수를 방해합니다. 약은 가급적 **물과 함께 복용**하시는 것을 권장합니다!";
+                } else if (text.includes("시간") || text.includes("놓쳤")) {
+                    reply = "⏰ 약 복용 시간을 잊으셨을 때는 생각난 즉시 복용하세요! 단, 다음 복용 시간이 얼마 남지 않았다면 차라리 다음 시간에 1회 분량만 드셔야 합니다. **절대 2배로 드시면 안 됩니다.**";
+                } else if (text.includes("속") || text.includes("쓰린") || text.includes("위장")) {
+                    reply = "🤢 속이 쓰리시다면 식사 직후에 약을 복용해 보시거나, 필요한 경우 제산제(소화위장약) 병용에 대해 담당 의사/약사와 상담하시는 것이 좋습니다.";
+                }
+
+                appendChatBubble(reply, 'ai');
+            }, 600);
+        }
+
+        function sendQuickMessage(text) {
+            document.getElementById('chat-input').value = text;
+            sendChatMessage();
+        }
+
+        function appendChatBubble(msg, sender) {
+            const chatContainer = document.getElementById('chat-messages');
+            if (!chatContainer) return;
+
+            const isUser = sender === 'user';
+            const bubbleHtml = `
+                <div class="flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}">
+                    <div class="w-6 h-6 rounded-full ${isUser ? 'bg-slate-700' : 'bg-blue-600'} text-white flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                        ${isUser ? '나' : 'AI'}
+                    </div>
+                    <div class="${isUser ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'} p-2.5 rounded-2xl max-w-[85%] leading-relaxed">
+                        ${msg}
+                    </div>
+                </div>`;
+            chatContainer.insertAdjacentHTML('beforeend', bubbleHtml);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function clearChatHistory() {
+            const chatContainer = document.getElementById('chat-messages');
+            if (!chatContainer) return;
+            chatContainer.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shrink-0 mt-0.5">AI</div>
+                    <div class="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none max-w-[85%] leading-relaxed">
+                        대화 내용이 초기화되었습니다. 약 복용에 대해 새로 궁금한 점을 물어보세요!
+                    </div>
+                </div>`;
+        }
+
+        function togglePwaModal() {
+            const modal = document.getElementById('pwa-modal');
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        /* Initialize App on Load */
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
